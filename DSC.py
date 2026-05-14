@@ -236,8 +236,6 @@ def fitGaussian(df, ax, **kwargs):
         DataFrame containing DSC data.
     ax : mpl.axes.Axes
         Axes object to plot Gaussian fit on. Typically twin from DSC plot.
-    return_err : bool, default False
-        Option to return uncertainties for Tg and dT
 
     Returns
     -------
@@ -251,8 +249,6 @@ def fitGaussian(df, ax, **kwargs):
         Uncertainty in dT fit in deg. C
 
     '''
-    
-    return_err = kwargs.get('return_err', False)
 
     def Gaussian(x, *params):
         y = np.zeros_like(x);
@@ -285,8 +281,4 @@ def fitGaussian(df, ax, **kwargs):
     ax.plot(fit_temp, fit, ':', color='k',
             label=f'T$_g = {Tg:0.1f} ^\\circ$C \n $\u03b4T = {dT:0.1f} ^\\circ$C')
     
-    
-    if return_err:
-        return Tg, Tg_err, dT, dT_err
-    else:
-        return Tg, dT
+    return Tg, Tg_err, dT, dT_err
