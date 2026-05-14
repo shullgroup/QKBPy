@@ -1,6 +1,3 @@
-#Import any individual functions from outside packages 
-#that are used in your functions.
-#These are called dependencies.
 # updated version of this file is maintained at
 # https://github.com/shullgroup/QKBPy/dsc.py
 import pandas as pd
