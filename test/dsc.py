@@ -2,7 +2,7 @@
 #that are used in your functions.
 #These are called dependencies.
 # updated version of this file is maintained at
-# https://github.com/shullgroup/rheoQCM/blob/master/QCMFuncs/DSC_functions.py
+# https://github.com/shullgroup/QKBPy/dsc.py
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
