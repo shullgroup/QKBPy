@@ -47,7 +47,7 @@ def readDSC(path, **kwargs):
     savgol_window : int, default 151
         Window length for filtering derivative data.  Must be odd int
 
-    savgol_polyoder : int, default 4
+    savgol_polyorder : int, default 4
         Polynomial degree for filtering derivative data.  Must be 
         less than window length.
     
