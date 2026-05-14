@@ -48,7 +48,7 @@ def readDSC(path, **kwargs):
     savgol_polyorder = kwargs.get('savgol_polyorder', 4)
 
     if mode == 'mdsc':
-        start_row = first_line(path)
+        start_row = first_line(path, sep = '\t')
         with open(path, 'r') as f:
             df = pd.read_csv(f, delimiter="\t", skiprows=start_row,
                             usecols=[0,1,2,3,7],
