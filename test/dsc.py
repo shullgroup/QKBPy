@@ -3,14 +3,13 @@
 #These are called dependencies.
 # updated version of this file is maintained at
 # https://github.com/shullgroup/rheoQCM/blob/master/QCMFuncs/DSC_functions.py
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
-import csv
-from scipy.signal import savgol_filter
 
+from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
-from .utils import *
+from .utils import find_data_start, apply_lib_style
 
 def readDSC(path, **kwargs):
     '''
@@ -46,6 +45,8 @@ def readDSC(path, **kwargs):
     apply_savgol = kwargs.get('apply_savgol', True)
     savgol_window = kwargs.get('savgol_window', 151)
     savgol_polyorder = kwargs.get('savgol_polyorder', 4)
+
+    sep = '\t'
 
     if mode == 'mdsc':
         start_row = first_line(path, sep = '\t')
