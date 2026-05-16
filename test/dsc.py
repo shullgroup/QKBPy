@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
-from .utils import first_line, default_cycler
+from .utils import first_line, DEFAULT_CYCLER
 
 def readDSC(path, **kwargs):
     '''
