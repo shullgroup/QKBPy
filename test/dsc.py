@@ -1,5 +1,5 @@
 # updated version of this file is maintained at
-# https://github.com/shullgroup/QKBPy/dsc.py
+# https://github.com/shullgroup/QKBPy/blob/main/test/dsc.py
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
