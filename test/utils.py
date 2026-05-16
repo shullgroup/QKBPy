@@ -7,7 +7,7 @@ import csv
 from cycler import cycler
 
 # Shared across the library
-default_cycler = cycler(color=[
+DEFAULT_CYCLER = cycler(color=[
     '#0093F5', '#F08E2C', '#000000', '#424EBD', '#B04D25', '#75CA85', '#C892D6'
 ]*3, linestyle=['-']*7 + ['--']*7 + [':']*7)
 
