@@ -14,7 +14,7 @@ from scipy.special import digamma
 from pymittagleffler import mittag_leffler
 
 from .utils import first_line, DEFAULT_CYCLER
-
+from .graphics import double_headed_arrow, vline
 
 
 # axis labels
@@ -74,7 +74,35 @@ def readDMA(path, **kwargs):
     df['Estar'] = df['storage']+1j*df['loss']
     return df
 	
+def readtTS(path, **kwargs):
+    '''
+    Returns a DataFrame from time-temperature superposition experiment.
+
+    Parameters
+    ----------
+    path : Path
+        Path object to the temperature sweep experiment txt file.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing relevant experimental data.
+
+    '''
+    sep = kwargs.get('sep', '\t')
     
+    target_cols = [0,1,2,3,4,5,6,7]
+    # Pass target_cols to prevent premature stopping on metadata
+    start_row = first_line(path, sep=sep, target_cols=target_cols)
+    #open file
+    with open(path, 'r') as f:
+        df = pd.read_csv(f, sep=sep, skiprows=start_row,
+                         usecols=target_cols,
+                         names=['w','t','temp','strain','stress',
+                                'tand','storage','loss'])
+    df['freq'] = df['w']/(2*np.pi)
+        
+    return df
 
 def readStressRelax(path, **kwargs):
     """
@@ -153,8 +181,7 @@ def plotStressRelax(*arg, **kwargs):
     
     Notes
     -----
-    - The function uses a predefined color palette (`palette`) for multiple
-      datasets.
+    - The function uses the default cycler in utils
     - The figure size is fixed at (4, 3) inches with constrained layout.
     - Normalization adjusts modulus values relative to the second data point.
     
@@ -500,10 +527,12 @@ def fitVFT(aT_in, **kwargs):
 
     if 'ax' in kwargs.keys():
         ax = kwargs.get('ax')
+        # Apply custom cycler to the specific axes
+        ax.set_prop_cycle(DEFAULT_CYCLER)
         # Plot aT vs. T
         ax.set_xlabel('T ($^{\\circ}$C)')
         ax.set_ylabel(r'$a_T$')
-        ax.semilogy(T, aT, 'o', color=palette[0], label='Expt.')
+        ax.semilogy(T, aT, 'o', label='Expt.')
         # Plot fitted curve
         Tfit = np.linspace(min(T), max(T), 100)
         aTfit = np.exp(lnaT_VFT(Tfit, B, Tinf))
@@ -512,7 +541,6 @@ def fitVFT(aT_in, **kwargs):
             aTfit,
             '--',
             linewidth=2,
-            color=palette[1],
             label=f'B={B:.0f}K; $T_\\infty$={Tinf:.0f}$^\\circ$C'
         )
     
@@ -526,11 +554,9 @@ def lnaT_VFT(T, B, Tinf, Tref):
     lnaT = -B / (Tref - Tinf) + B / (T - Tinf)
     return lnaT
 
-
 def aT_VFT(T, B, Tinf, Tref):
     lnaT = -B / (Tref - Tinf) + B / (T - Tinf)
     return np.exp(lnaT)
-
 
 def Tg_DMA(B, Tinf, Tref, tau_ref, tau):
     def ftosolve(T):
@@ -539,8 +565,6 @@ def Tg_DMA(B, Tinf, Tref, tau_ref, tau):
                                   bounds=(Tinf+10, Tinf+400))
     return soln['x']
     
-
-
 def fitArrhenius(aT, **kwargs):
     """
     Fit time–temperature superposition (TTS) shift factors to Arrhenius form
@@ -583,11 +607,14 @@ def fitArrhenius(aT, **kwargs):
 
     # Plot aT vs. T
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
+    # Apply custom cycler to the specific axes
+    ax.set_prop_cycle(DEFAULT_CYCLER)
+
     ax.set_xlabel('Temperature ($^{\\circ}$C)')
     ax.set_ylabel(r'$a_T$')
     Tvals = [float(x) for x in aT.keys()]
     aTvals = [aT[i] for i in list(aT.keys())]
-    ax.semilogy(Tvals, aTvals, 'o', color=palette[0], label='Expt.')
+    ax.semilogy(Tvals, aTvals, 'o', label='Expt.')
 
     # Define Arrhenius fitting function
     def lnaT_Arrhenius(T, Ea):
@@ -614,7 +641,6 @@ def fitArrhenius(aT, **kwargs):
         aTfit,
         '--',
         linewidth=2,
-        color=palette[1],
         label=f'$E_a$={Ea / 1000:.0f} ± {Ea_err / 1000:.0f} kJ/mol'
     )
 
@@ -672,7 +698,6 @@ def E_A_VFT(T, B, Tinf, **kwargs):
     return E_A, E_A_err
 
 
-
 def fitPowerLaw(df, **kwargs):
     """
     Fit modulus and time values to a power-law model.
@@ -692,9 +717,12 @@ def fitPowerLaw(df, **kwargs):
     df = df.dropna()
 
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
+    # Apply custom cycler to the specific axes
+    ax.set_prop_cycle(DEFAULT_CYCLER)
+
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Relaxation Modulus (Pa)')
-    ax.loglog(df['time'], df['modulus'], 'o', color=palette[0], label='Expt.')
+    ax.loglog(df['time'], df['modulus'], 'o', label='Expt.')
 
     def lnPowerLaw(logt, lnG0, m):
         return lnG0 - m * logt
@@ -719,7 +747,6 @@ def fitPowerLaw(df, **kwargs):
         [np.exp(m) for m in modfit],
         '--',
         linewidth=2,
-        color=palette[1],
         label=(f'$G_0$={np.exp(lnG0):.1e} ± {G0_err:.1e} Pa;\n'
                f'm={m:.2f} ± {m_err:.2f}')
     )
@@ -944,9 +971,13 @@ def fitFracMaxwell(df, **kwargs):
 
     # Plot experimental data
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
+
+    # Apply custom cycler to the specific axes
+    ax.set_prop_cycle(DEFAULT_CYCLER)
+
     ax.set_xlabel('Time / $a_T$ (s)' if tts else 'Time (s)')
     ax.set_ylabel('G(t) / $b_T$ (Pa)' if tts else 'Relaxation Modulus G(t)')
-    ax.loglog(df['time'], df['modulus'], '.', color=palette[0],
+    ax.loglog(df['time'], df['modulus'], 'o',
               markevery=markevery, label=label)
 
     # Fit based on model type
@@ -1009,7 +1040,7 @@ def fitFracMaxwell(df, **kwargs):
     tfit = np.logspace(np.log10(min(df['time'])),
                        np.log10(max(df['time'])), 100)
     modfit = fracMaxwell(tfit, G, a, V, b)
-    ax.loglog(tfit, modfit, '--', linewidth=2, color=palette[1],
+    ax.loglog(tfit, modfit, '--', linewidth=2,
               markevery=10, label=fitlabel)
 
     # Finalize plot
@@ -1100,58 +1131,6 @@ def findTandMax(df):
     return invT
 
 
-
-def freqEa(path, **kwargs):
-    """
-    Fit temperature and frequency data to measure activation energy (Ea)
-    of tan(delta) peak.
-
-    Parameters
-    ----------
-    path : str
-        Path to DMA data file.
-    **kwargs : dict, optional
-        freq_num : int, default 31
-            Number of frequencies.
-        title : str, default ' '
-            Plot title.
-
-    Returns
-    -------
-    None
-        Displays plot and prints Ea.
-    """
-    freq_num = kwargs.get('freq_num', 31)
-    title = kwargs.get('title', ' ')
-
-    A = readDMA(path, keys='freq', freq_num=freq_num)
-    B = findTandMax(A)
-
-    freqs = np.linspace(-2, 1, freq_num).tolist()
-
-    for j in reversed(np.arange(0, len(B))):
-        if float('-inf') < B[j] < float('inf'):
-            continue
-        else:
-            B.pop(j)
-            freqs.pop(j)
-
-    linfit = np.polyfit(B, freqs, 1)
-    fitx = [(y - linfit[1]) / linfit[0] for y in freqs]
-    slope = linfit[0]
-    Ea = round(-1 * slope * 8.314e-3 * np.log(10), 0)
-
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
-    ax.plot([1000 * b for b in B], freqs, 'o', color=palette[0], 
-            label='Expt. Data')
-    ax.plot([1000 * x for x in fitx], freqs, '--', color=palette[1],
-            label=f'$E_a$={Ea:.0f} kJ/mol')
-    ax.set_ylabel('$log_{10}$ f')
-    ax.set_xlabel('Inverse Temperature (1000$K^{-1}$)')
-    ax.legend()
-    ax.set_title(title)
-
-
 def findEpr(temp, stor):
     """
     Return the rubbery storage modulus minimum and corresponding temperature.
@@ -1175,132 +1154,6 @@ def findEpr(temp, stor):
     T = temp[mini]
     Epr = np.min(stor)
     return Epr, T
-
-
-
-def compStor(path, f1, f2, f3, f4):
-    """
-    Compare storage modulus for multiple datasets and plot results.
-
-    Parameters
-    ----------
-    path : str
-        Base path to data files.
-    f1, f2, f3, f4 : str
-        Filenames for datasets.
-
-    Returns
-    -------
-    None
-        Displays a comparison plot.
-    """
-    A = readDMA(path, f1)
-    B = readDMA(path, f2)
-    C = readDMA(path, f3)
-    D = readDMA(path, f4)
-
-    temp1, stor1 = A[0], A[1]
-    temp2, stor2 = B[0], B[1]
-    temp3, stor3 = C[0], C[1]
-    temp4, stor4 = D[0], D[1]
-
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
-    p1, = ax.semilogy(temp1, stor1, '.-', ms=10, lw=3, color=palette[0],
-                      label='DGEBA/MDA')
-    p2, = ax.semilogy(temp2, stor2, '.-', ms=10, lw=3, color=palette[1],
-                      label='DGEBA/DTDA')
-    p3, = ax.semilogy(temp3, stor3, '.-', ms=10, lw=3, color=palette[3],
-                      label='BGPDS/MDA')
-    p4, = ax.semilogy(temp4, stor4, '.-', ms=10, lw=3, color=palette[4],
-                      label='BGPDS/DTDA')
-
-    ax.set_ylim(1e6, 1e10)
-    ax.set_xlim(-125, 225)
-    ax.set_xlabel('Temperature ($^oC$)')
-    ax.set_ylabel("Storage Modulus, E' (Pa)")
-    ax.set_title('FDS Space Comparison')
-    ax.legend(handles=[p1, p2, p3, p4])
-    return plt.show()
-
-
-def compLoss(path_base, *f, **kwargs):
-    """
-    Compare loss modulus for multiple datasets and plot results.
-
-    Parameters
-    ----------
-    path_base : Path
-        Base path to data files.
-    *f : str
-        Filenames for datasets.
-    **kwargs : dict, optional
-        temp_min : float, default -125
-        temp_max : float, default 150
-        mod_min : float, default 1e7
-        mod_max : float, default 5e8
-        legendsize : int, default 10
-
-    Returns
-    -------
-    None
-        Displays a comparison plot.
-    """
-    temp_min = kwargs.get('temp_min', -125)
-    temp_max = kwargs.get('temp_max', 150)
-    mod_min = kwargs.get('mod_min', 1e7)
-    mod_max = kwargs.get('mod_max', 5e8)
-    legendsize = kwargs.get('legendsize', 10)
-
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
-
-    for i in np.arange(0, len(f)):
-        A = readDMA(path_base.joinpath(f[i]))
-        temp, loss = A[0], A[2]
-        ax.semilogy(temp, loss, '-', ms=10, lw=3, color=palette[i],
-                    label=str(f[i]).rstrip('.txt'))
-
-    ax.set_ylim(mod_min, mod_max)
-    ax.set_xlim(temp_min, temp_max)
-    ax.set_xlabel('Temperature ($^oC$)')
-    ax.set_ylabel('Loss Modulus, E" (Pa)')
-    ax.set_title('E" Comparison')
-    ax.legend(prop={'size': legendsize})
-    return plt.show()
-
-
-def compTand(path, *f):
-    """
-    Compare tan(delta) for multiple datasets and plot results.
-
-    Parameters
-    ----------
-    path : str
-        Base path to data files.
-    *f : str
-        Filenames for datasets.
-
-    Returns
-    -------
-    None
-        Displays a comparison plot.
-    """
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
-
-    for i in np.arange(0, len(f)):
-        A = readDMA(path, f[i])
-        temp, tand = A[0], A[3]
-        ax.semilogy(temp, tand, '.-', ms=10, lw=3, color=palette[i],
-                    label=str(f[i]).rstrip('-1.txt'))
-
-    ax.set_ylim(0.01, 2)
-    ax.set_xlim(-125, 225)
-    ax.set_xlabel('Temperature ($^oC$)')
-    ax.set_ylabel('tan$\\delta$')
-    ax.set_title('FDS tan$\\delta$ Comparison')
-    ax.legend()
-    return plt.show()
-
-
 
 def fitTwoGaussian(path, **kwargs):
     """

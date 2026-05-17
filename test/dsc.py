@@ -1,11 +1,14 @@
 # updated version of this file is maintained at
 # https://github.com/shullgroup/QKBPy/blob/main/test/dsc.py
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
+
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
+
 from .utils import first_line, DEFAULT_CYCLER
+from .graphics import double_headed_arrow, vline
 
 def readDSC(path, **kwargs):
     '''
