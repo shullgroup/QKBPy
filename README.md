@@ -1,2 +1,2 @@
 # QKBPy
-Varioius analysisfunctions
+Various analysis functions
