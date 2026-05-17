@@ -193,6 +193,7 @@ def plotDSC(df, **kwargs):
     return Tg, ax, twin
 
 def fitGaussian(df, ax, **kwargs):
+    # CHANGE THIS TO UTILIZE GENERALIZED fitGaussian FUNCTION IN MODELS
     '''
     Fits data to single Gaussian peak and adds to DSC plot
 

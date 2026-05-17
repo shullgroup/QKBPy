@@ -14,6 +14,7 @@ from scipy.special import digamma
 from pymittagleffler import mittag_leffler
 
 from .utils import first_line, DEFAULT_CYCLER
+from .models import Gaussian, Arrhenius, VFT
 from .graphics import double_headed_arrow, vline
 
 
@@ -47,24 +48,30 @@ def readDMA(path, **kwargs):
     '''
     
     instrument = kwargs.get('instrument', 'g2')
-    skiprows = kwargs.get('skiprows', first_line(path))
-
 
     if instrument=='rsa3':
         #if old DMA, read data with these labels
         # may need to update this to define other variables 
         #vif it is still being used
         with open(path, 'r') as f:
-            df = pd.read_csv(f, delimiter="\t", skiprows=skiprows,
-                             usecols=[0,1,2,3],
+            sep = kwargs.get('sep', '\t')
+            target_cols = [0,1,2,3]
+            # Pass target_cols to prevent premature stopping on metadata
+            skiprows = first_line(path, sep=sep, target_cols=target_cols)
+            df = pd.read_csv(f, delimiter=sep, skiprows=skiprows,
+                             usecols=target_cols,
                              names=['temp','storage','loss','tand'])
 
     
     # if newer G2 DMA, use these labels
     else:
         with open(path, 'r') as f:
-            df = pd.read_csv(f, sep='\t', skiprows=skiprows,
-                             usecols=[0,1,2,3,4,5,6,7],
+            sep = kwargs.get('sep', '\t')
+            target_cols = [0,1,2,3,4,5,6,7]
+            # Pass target_cols to prevent premature stopping on metadata
+            skiprows = first_line(path, sep=sep, target_cols=target_cols)
+            df = pd.read_csv(f, sep=sep, skiprows=skiprows,
+                             usecols=target_cols,
                              names=['w','t','temp','strain','stress',
                                     'tand','storage','loss'])
             df['freq'] = df['w']/(2*np.pi)
@@ -93,10 +100,10 @@ def readtTS(path, **kwargs):
     
     target_cols = [0,1,2,3,4,5,6,7]
     # Pass target_cols to prevent premature stopping on metadata
-    start_row = first_line(path, sep=sep, target_cols=target_cols)
+    skiprows = first_line(path, sep=sep, target_cols=target_cols)
     #open file
     with open(path, 'r') as f:
-        df = pd.read_csv(f, sep=sep, skiprows=start_row,
+        df = pd.read_csv(f, sep=sep, skiprows=skiprows,
                          usecols=target_cols,
                          names=['w','t','temp','strain','stress',
                                 'tand','storage','loss'])
@@ -144,7 +151,46 @@ def readStressRelax(path, **kwargs):
 
     return t, mod
 
+def readStressRelax(path, **kwargs):
+    '''
+    Returns a DataFrame from a stress relaxation experiment.
 
+    Parameters
+    ----------
+    path : Path
+        Path object to the temperature sweep experiment txt file.
+    
+    strain : float or int
+        Strain (in %) used for experiment.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame containing relevant experimental data.
+
+    '''
+
+    strain = kwargs.get('strain', 1.0)
+    sep = kwargs.get('sep', ',')
+    
+    lowstrainwindow = strain - 0.01
+    histrainwindow = strain + 0.01
+
+    # Define the columns we want to check and extract
+    target_cols = [2, 3, 4, 5, 6]
+
+    # Pass target_cols to prevent premature stopping on metadata
+    skiprows = first_line(path, sep=sep, target_cols=target_cols)
+    
+    with open(path, 'r') as f:
+        df = pd.read_csv(path, skiprows=skiprows, 
+                        usecols=target_cols, sep=sep,
+                        names=['time', 'strain', 'stress', 'modulus', 'torque'])
+                     
+    # Filter the DataFrame for only when strain is reached
+    df = df.query('strain <= @histrainwindow & strain >= @lowstrainwindow')
+    
+    return df
 
 def plotStressRelax(*arg, **kwargs):
 
@@ -1246,27 +1292,10 @@ def fitGaussian(path, **kwargs):
     -------
     popt : ndarray
         Optimal parameters for the Gaussian peak.
+    
+    perr : 
     """
-    i_max = kwargs.get('i_max', 80)
-
-    A = readDMA(path)
-    temp = [T + 273 for T in A[0]][0:i_max]
-    tand = np.array(A[3][0:i_max])
-
-    baseline = [
-        (tand[0] + ((tand[-1] - tand[0]) / (temp[-1] - temp[0])) *
-         (i - temp[0]))
-        for i in temp
-    ]
-    tand_base = np.subtract(np.array(tand), np.array(baseline))
-
-    def Gaussian(x, *params):
-        ctr, amp, wid = params
-        return amp * np.exp(-((x - ctr) / wid) ** 2)
-
-    guess = [210, 5e-2, 10]
-    popt, _ = curve_fit(Gaussian, temp, tand_base, p0=guess)
-    return popt
+    # NEED TO REVAMP, REMOVED OLD BAD CODE
 
 
 def frac_lin_solid(f, Er, Eg, lambda_t, lambda_g, tau_g):
