@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed 13 05 2026 20:35:00
-@author: brodericklewis
-"""
+# updated version of this file is maintained at
+# https://github.com/shullgroup/QKBPy/blob/main/test/utils.py
+
+import numpy as np
 import csv
 from cycler import cycler
 
@@ -77,3 +77,29 @@ def first_line(path, **kwargs):
                 if any(is_numeric(cell) for cell in cleaned_row):
                     return i
     return 0
+
+def remove_step_lines(df):
+    '''
+    Remove extra lines in files from multiple steps in 
+    TA Instruments experiments
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe from experimental file
+    
+    Returns
+    -------
+    df : pd.DataFrame
+        Cleaned dataframe with step lines removed.
+    '''
+
+    to_drop = []
+    for rows in np.arange(0,len(df)):
+        
+        if df.iloc[rows, 0] == '[step]':
+            to_drop.extend([rows,rows+1,rows+2,rows+3])
+    
+    df = df.drop(to_drop).reset_index(drop=True)
+
+    return df

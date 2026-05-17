@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed 17 05 2026 11:27:30
-@author: brodericklewis
-"""
+# updated version of this file is maintained at
+# https://github.com/shullgroup/QKBPy/blob/main/test/graphics.py
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -70,3 +68,29 @@ def vline(x, ax, **kwargs):
     label = kwargs.get('label', None)
     
     ax.vlines(x, ymin, ymax, color = color, linestyle = linestyle, label = label)
+
+def hline(y, ax, **kwargs):
+    '''
+    Draws horizontal line at y using existing limits
+
+    Parameters
+    ----------
+    y : float
+        location of the horizontal line
+    ax : axis
+        axis on which to plot the line.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    xmin = ax.get_xlim()[0]
+    xmax = ax.get_xlim()[1]
+    linestyle = kwargs.get('linestyle', '--')
+    linewidth = kwargs.get('linewidth', 1.5)
+    color = kwargs.get('color', 'k')
+
+    ax.hlines(y, xmin, xmax, color = color, linestyle = linestyle,
+              linewidth = linewidth)
