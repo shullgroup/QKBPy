@@ -18,6 +18,7 @@ from pymittagleffler import mittag_leffler
 
 from .utils import first_line, remove_step_lines, DEFAULT_CYCLER
 from .graphics import double_headed_arrow, vline
+from .models import Arrhenius
 
 def readRheo(path, **kwargs):
     chain_time = kwargs.get('chain_time', False)
@@ -364,6 +365,7 @@ def processChirp(df, **kwargs):
     return f_df
 
 def fitGaussian(df, xprop, yprop, **kwargs):
+    # CHANGE TO USE GENERALIZED fitGaussian IN MODELS
     '''
     Fits data to single Gaussian peak and adds to plot
 
@@ -496,7 +498,3 @@ def plotCureDeriv(df, **kwargs):
         plt.savefig(savepath)
 
     return ax
-
-def Arrhenius(T, A, Ea):
-
-    return A*np.exp(Ea/(8.314*T))
