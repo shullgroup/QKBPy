@@ -51,6 +51,7 @@ def readDSC(path, **kwargs):
     else:
         usecols, names = [0, 1, 2], ['time', 'temp', 'q']
 
+    # find first row of data
     start_row = first_line(path, sep=sep, target_cols=usecols)
     
     df = pd.read_csv(path, sep=sep, skiprows=start_row, usecols=usecols, names=names)
@@ -64,7 +65,10 @@ def readDSC(path, **kwargs):
     if mode == 'conv':
         df['dqdT'] = np.gradient(df['q'], df['temp'])
 
+    # apply Savitsky-Golay filter to smooth data
+    # because normally very coarse/jumpy directly from instrument
     if apply_savgol:
+        # use reversing heat flow if mDSC
         q_to_smooth = 'q_rev' if mode == 'mdsc' else 'q'
         dq_to_smooth = 'dq_revdT' if mode == 'mdsc' else 'dqdT'
         
@@ -132,6 +136,7 @@ def plotDSC(df, **kwargs):
     show_deriv_ticks = kwargs.get('show_deriv_ticks', False)
     orientation = kwargs.get('orientation', 'exo_up')
 
+    # clean up the dataframe
     df = df.replace([np.inf, -np.inf], np.nan).dropna()
     df = df.query('temp >= @min_temp and temp <= @max_temp')
     
@@ -139,6 +144,7 @@ def plotDSC(df, **kwargs):
     q_col = 'q_rev' if mode == 'mdsc' else 'q'
     dq_col = 'dq_revdT' if mode == 'mdsc' else 'dqdT'
 
+    # if not given an axis to plot on, make one
     if not ax:
         fig, ax = plt.subplots(figsize=(4,3), constrained_layout=True)
         ax.set_xlabel('Temperature ($^\\circ$C)')
@@ -148,11 +154,13 @@ def plotDSC(df, **kwargs):
     # Apply your custom cycler to the specific axes
     ax.set_prop_cycle(DEFAULT_CYCLER)
 
+    # if not given a twin axis for the derivative, make one
     if not twin:
         twin = ax.twinx()
         twin.set_ylabel('Deriv. Heat Flow (W/g*$^{\\circ}$C)')
         twin.set_prop_cycle(DEFAULT_CYCLER)
 
+    # plot heat flow and derivative w.r.t. temperature
     ax.plot(df['temp'], df[q_col], '-', label='Heat Flow')
     twin.plot(df['temp'], -df[dq_col], '--', label='dq/dT')
     
@@ -162,19 +170,23 @@ def plotDSC(df, **kwargs):
         # We pass the column name to fit function so it knows what to fit
         Tg, Tg_err, dT, dT_err = fitGaussian(df, twin, target_dq=dq_col, **kwargs)
     
+    # add everything to the same legend unless you don't want a legend
     if not no_legend:
         h1, l1 = ax.get_legend_handles_labels()
         h2, l2 = twin.get_legend_handles_labels()
         ax.legend(handles=h1+h2, labels=l1+l2, loc=legendloc, prop={'size':legendsize})
         
+    # add annotation for the heat flow orientation
     if orientation == 'exo_up':
         ax.annotate('Exo Up', (5,5), xycoords='axes points')
     elif orientation == 'endo_up':
         ax.annotate('Endo Up', (5,5), xycoords='axes points')
 
+    # usually don't show derivative y ticks because too crowded
     if not show_deriv_ticks:   
         twin.set_yticks([])
 
+    # save plot if given path
     if savepath:
         plt.savefig(savepath)
 
@@ -211,11 +223,14 @@ def fitGaussian(df, ax, **kwargs):
     target_dq = kwargs.get('target_dq', 'dqdT')
     bounds = kwargs.get('bounds', ([-100,0,0,-1],[200,1,30,1]))
 
+    # gaussian with baseline y0
     def Gaussian(x, ctr, amp, wid, y0):
         return y0 + amp * np.exp(-((x - ctr) / (2 * wid)) ** 2)
 
+    # clean up dataframe a bit
     df = df.replace([np.inf, -np.inf], np.nan).dropna()
     
+    # find peak in derivative (min because negative usually)
     peak_idx = df[target_dq].idxmin()
     guess = kwargs.get('guess', [df.loc[peak_idx, 'temp'], 3e-2, 10, 0])
     
@@ -226,9 +241,11 @@ def fitGaussian(df, ax, **kwargs):
         fit_temp = np.linspace(df['temp'].min(), df['temp'].max(), 1000)
         fit_curve = Gaussian(fit_temp, *popt)
         
+        # plot the fit
         ax.plot(fit_temp, fit_curve, ':', color='k',
                 label=f'T$_g = {popt[0]:0.1f} ^\\circ$C \n $\u03b4T = {popt[2]:0.1f} ^\\circ$C')
         
+        # return the peak center and error and the peak width and error
         return popt[0], perr[0], popt[2], perr[2]
     except Exception:
         return np.nan, np.nan, np.nan, np.nan
