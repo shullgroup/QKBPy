@@ -800,6 +800,96 @@ def fitPowerLaw(df, **kwargs):
     ax.legend()
     return plt.show()
 
+def fitMaxwell(df, **kwargs):
+    '''
+    Performs fit of Maxwell model (exponential decay) to time and modulus data 
+    from stress relaxation (or other) experiment.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing time and modulus data from stress relaxation
+        experiment.
+        
+    residual : float, None
+        Residual modulus (in Pa) if relevant for a given composition.        
+        
+    ylims : list, [1e4, 1e7]
+        Desired limits to the y-axis (modulus)        
+        
+    tts : bool, False
+        Flag for changing the axis labels to reflect the use of shift factors
+        if a time-temperature superposition experiment.
+        
+    title : str, None
+        Desired title for the plot.
+    
+    savepath : Path, None
+        Path to use for saving the plot.
+
+    Returns
+    -------
+    tau : float
+        Characteristic relaxation time in s.
+    tau_err : float
+        Uncertainty in relaxation time from fitting (also in s)
+
+    '''
+    
+    residual = kwargs.get('residual', None)
+    ylims = kwargs.get('ylims', [1e4, 1e7])
+    tts = kwargs.get('tts', False)
+    title = kwargs.get('title', None)
+    savepath = kwargs.get('savepath', None)
+    
+    #plot E vs. t
+    fig, ax = plt.subplots(1,1, figsize=(4,3), constrained_layout=True)
+    if tts:
+        ax.set_xlabel('Time / $a_T$ (s)')
+        ax.set_ylabel('G(t) / $b_T$ (Pa)')
+    else:
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel(r'Relaxation Modulus $G(t)$ (Pa)')
+    
+    df.dropna()
+    
+    ax.loglog(df['time'], df['modulus'], '.', color='C0', label = 'Expt.')
+    
+    if residual:
+        #define maxwell response with residual modulus
+        def maxwell(t, G0, tau):
+            return residual + G0*np.exp(-t/tau)
+    
+    else:
+        #define maxwell element response
+        def maxwell(t, G0, tau):
+            return G0*np.exp(-t/tau)
+    
+    # do the curve fit
+    popt, pcov = curve_fit(maxwell, df['time'], df['modulus'],
+                           maxfev=5000,
+                           p0=[1e7, 10],
+                           bounds=([1e5,0.1],[1e8,1e5]))
+
+    # extract the fit value for tau
+    G0, tau = popt
+    G0_err, tau_err = np.sqrt(np.diag(pcov))
+
+    # now plot the fit values
+    tfit = np.logspace(np.log10(min(df['time'])), np.log10(max(df['time'])), 1000)
+    Gfit = maxwell(tfit, G0, tau)
+    ax.loglog(tfit, Gfit, '--', linewidth=2, color='C1',
+                label = f'$\u03c4_r={tau:.1f} \pm {tau_err:.1f}$ s')
+
+    # add the legend
+    ax.legend()
+    ax.set_title(title)
+    ax.set_ylim(ylims)
+    
+    if savepath:
+        plt.savefig(savepath)
+        
+    return tau, tau_err
 
 def fitKWW(df, **kwargs):
     """
@@ -1343,6 +1433,14 @@ def frac_lin_solid(f, Er, Eg, lambda_t, lambda_g, tau_g):
         (1j * f * tau_g) ** (-lambda_t) + (1j * f * tau_g) ** (-lambda_g)
     )
 
+def frac_lin_solid_stacked(f_stacked, Er, Eg, lambda_t, lambda_g, tau_g):
+    
+    N = len(f_stacked) // 2
+    f = f_stacked[:N]
+    
+    E_star = frac_lin_solid(f, Er, Eg, lambda_t, lambda_g, tau_g)
+    
+    return np.hstack([E_star.real, E_star.imag])
 
 def residuals_old(params, f, Ep_data, Epp_data, Efunc):
     """
