@@ -143,12 +143,12 @@ def plotDSC(df, **kwargs):
         ax.set_title(title)
     
     # Apply your custom cycler to the specific axes
-    ax.set_prop_cycle(default_cycler)
+    ax.set_prop_cycle(DEFAULT_CYCLER)
 
     if not twin:
         twin = ax.twinx()
         twin.set_ylabel('Deriv. Heat Flow (W/g*$^{\\circ}$C)')
-        twin.set_prop_cycle(default_cycler)
+        twin.set_prop_cycle(DEFAULT_CYCLER)
 
     ax.plot(df['temp'], df[q_col], '-', label='Heat Flow')
     twin.plot(df['temp'], -df[dq_col], '--', label='dq/dT')
@@ -157,7 +157,7 @@ def plotDSC(df, **kwargs):
     Tg = None
     if kwargs.get('showTg', True):
         # We pass the column name to fit function so it knows what to fit
-        Tg, Tg_err, dT, dT_err = fitGaussianDSC(df, twin, target_dq=dq_col, **kwargs)
+        Tg, Tg_err, dT, dT_err = fitGaussian(df, twin, target_dq=dq_col, **kwargs)
     
     if not no_legend:
         h1, l1 = ax.get_legend_handles_labels()

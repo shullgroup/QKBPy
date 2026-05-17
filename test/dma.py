@@ -15,81 +15,12 @@ from pymittagleffler import mittag_leffler
 
 from .utils import first_line, DEFAULT_CYCLER
 
-def double_headed_arrow(ax, x1, y1, x2, y2, 
-                        color='C0', linewidth=2, 
-                        mutation_scale=15, 
-                        zorder=3, 
-                        **kwargs):
-    """
-    Draw a double-headed arrow from (x1, y1) to (x2, y2) on the given axes.
-    
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes to draw on.
-    x1, y1, x2, y2 : float
-        Coordinates in data space.
-    color : str
-        Arrow color.
-    linewidth : float
-        Line width.
-    mutation_scale : float
-        Controls the size of the arrowheads.
-    zorder : int
-        Drawing order.
-    kwargs : dict
-        Passed through to FancyArrowPatch (e.g., alpha, linestyle).
-    """
-    arrow = FancyArrowPatch(
-        (x1, y1), (x2, y2),
-        arrowstyle='<->',           # double-headed
-        mutation_scale=mutation_scale,
-        color=color,
-        linewidth=linewidth,
-        zorder=zorder,
-        shrinkA=0.0, shrinkB=0.0,   # no shrinking at ends
-        # By default, FancyArrowPatch uses data coordinates from the Axes
-        **kwargs
-    )
-    ax.add_patch(arrow)
-    return arrow
 
-palette = ['#0093F5', '#F08E2C', '#000000', '#424EBD', '#B04D25', 
-           '#75CA85', '#C892D6', '#007d00']
 
 # axis labels
 axlabels = {'storage':r'$E^\prime$ (Pa)',
            'loss': r'$E^{\prime\prime}$ (Pa)',
            'phi':r'$\phi$ (deg.)'}
-
-# function used to figure out number of lines to ignore in DMA input file
-
-def first_numbered_line(file_path):
-    """
-    Find the line number of the first line in a file that starts with a digit.
-
-    This function reads a text file line by line and returns the line number
-    of the first non-empty line whose first non-whitespace character is a digit.
-    If no such line exists, it returns None.
-
-    Parameters:
-    ----------
-    file_path : str
-        The path to the text file to be read.
-
-    Returns:
-    -------
-    int or None
-        The line number (1-based index) of the first line starting with a digit,
-        or None if no such line is found.
-    """
-    with open(file_path, 'r') as file:
-        for line_number, line in enumerate(file, start=1):
-            stripped_line = line.lstrip()
-            if stripped_line and stripped_line[0].isdigit():
-                return line_number
-    return None
-
 
 #Function definitions with docstrings
 def readDMA(path, **kwargs):
@@ -106,7 +37,7 @@ def readDMA(path, **kwargs):
     skiprows : int
         Number of rows to skip at beginning of file to remove header. Default skips 
         all lines until the first one beginning with
-        a nun-numeric character.
+        numeric characters.
 
     Returns
     -------
@@ -115,8 +46,8 @@ def readDMA(path, **kwargs):
 
     '''
     
-    instrument = kwargs.get('instrument', 'g2');
-    skiprows = kwargs.get('skiprows', first_numbered_line(path))
+    instrument = kwargs.get('instrument', 'g2')
+    skiprows = kwargs.get('skiprows', first_line(path))
 
 
     if instrument=='rsa3':
@@ -236,6 +167,8 @@ def plotStressRelax(*arg, **kwargs):
     yaxis = kwargs.get('yaxis', 'log')
 
     fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
+    # Apply custom cycler to the specific axes
+    ax.set_prop_cycle(DEFAULT_CYCLER)
 
     a = 0
     for A in arg:
@@ -253,9 +186,9 @@ def plotStressRelax(*arg, **kwargs):
 
         # Set log or linear y-axis
         if yaxis == 'log':
-            ax.loglog(time, modulus, '-', color=palette[a])
+            ax.loglog(time, modulus)
         elif yaxis == 'linear':
-            ax.semilogx(time, modulus, '-', color=palette[a])
+            ax.semilogx(time, modulus)
         a += 1
 
     ax.set_xlabel('Time (s)')
@@ -795,78 +728,6 @@ def fitPowerLaw(df, **kwargs):
     return plt.show()
 
 
-
-def fitHybrid(df, B, Tinf, **kwargs):
-    """
-    Fit data to a hybrid VFT/Arrhenius model and plot relaxation time vs. T.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        DataFrame with columns 'temp' and 'tau'.
-    B : float
-        VFT constant.
-    Tinf : float
-        Ideal glass transition temperature.
-    **kwargs : dict, optional
-        Eaguess : float, default 1.9e5
-        tau0_arrguess : float, default 1e-12
-        tau0_vftguess : float, default 1e-12
-        title : str, default None
-
-    Returns
-    -------
-    None
-        Displays plot and prints relative errors.
-    """
-    Eaguess = kwargs.get('Eaguess', 1.9e5)
-    tau0_arrguess = kwargs.get('tau0_arrguess', 1e-12)
-    tau0_vftguess = kwargs.get('tau0_vftguess', 1e-12)
-    title = kwargs.get('title', None)
-
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3), constrained_layout=True)
-    ax.set_xlabel('T ($^{\\circ}$C)')
-    ax.set_ylabel('Relaxation Time (s)')
-    ax.semilogy(df['temp'], df['tau'], 'o', color=palette[0], label='Expt.')
-
-    def addVFTArrhenius(T, tau0_vft, tau0_arr, Ea):
-        R = 8.3145
-        return (tau0_vft * np.exp(B / (T - Tinf)) +
-                tau0_arr * np.exp(Ea / (R * (T + 273))))
-
-    popt, pcov = curve_fit(
-        addVFTArrhenius,
-        df['temp'],
-        df['tau'],
-        bounds=((1e-16, 1e-16, 1.0e5), (1e-9, 1e-9, 2.2e5)),
-        p0=[tau0_vftguess, tau0_arrguess, Eaguess],
-        maxfev=5000,
-        sigma=[t for t in df['tau']],
-        absolute_sigma=True
-    )
-
-    tau0_vft, tau0_arr, Ea = popt
-    tau0_vft_err, tau0_arr_err, Ea_err = [float(np.sqrt(p)) 
-                                          for p in np.diag(pcov)]
-
-    Tfit = np.linspace(min(df['temp']), max(df['temp']), 100)
-    taufit = addVFTArrhenius(Tfit, tau0_vft, tau0_arr, Ea)
-    ax.semilogy(
-        Tfit,
-        taufit,
-        '--',
-        linewidth=2,
-        color=palette[1],
-        label=(f'$E_a$={Ea / 1000:.0f} kJ/mol;\n'
-               f'$\\tau_0,Arr$={tau0_arr:0.2e} s;\n'
-               f'$\\tau_0,VFT$={tau0_vft:0.2e} s')
-    )
-    ax.set_title(title)
-    ax.legend()
-    return print(tau0_vft_err / tau0_vft, tau0_arr_err / tau0_arr, Ea_err / Ea)
-
-
-
 def fitKWW(df, **kwargs):
     """
     Fit stress relaxation data to a stretched exponential (KWW) model.
@@ -985,129 +846,6 @@ def fitKWW(df, **kwargs):
             
 
     return G0, tau, avgtau, avgtau_err, beta
-
-
-def MLf(z, a):
-    '''
-    Returns an array of values corresponding to the evaluation of the
-    one parameter Mittag-Leffler function for an array of values z.
-
-    Parameters
-    ----------
-    z : array
-        Array of numbers to evaluate.
-    a : float
-        Mittag-Leffler parameter a or alpha.
-
-    Returns
-    -------
-    array
-        Array of output values.
-    
-    Notes
-    -----
-    - This function is designed primarily for real-valued z and especially
-        z = -t^a where t > 0.
-    - This was built with help from Stack Overflow and the paper by Gorenflo,
-        Loutchko, and Luchko 2002.
-
-    '''
-    z = np.atleast_1d(z)
-    if a == 0:
-        return 1/(1 - z)
-    elif a == 1:
-        return np.exp(z)
-    elif a > 1 or all(z > 0):
-        k = np.arange(100)
-        return np.polynomial.polynomial.polyval(z, 1/gammaf(a*k + 1))
-
-    # a helper for tricky case, from Gorenflo, Loutchko & Luchko
-    def _MLf(z, a):
-        if z < 0:
-            f = lambda x: (np.exp(-x*(-z)**(1/a)) * x**(a-1)*np.sin(np.pi*a)
-                          / (x**(2*a) + 2*x**a*np.cos(np.pi*a) + 1))
-            return 1/np.pi * quad(f, 0, np.inf)[0]
-        elif z == 0:
-            return 1
-        else:
-            return MLf(z, a)
-    return np.vectorize(_MLf)(z, a)
-
-def ML2f(z, a, b, **kwargs):
-    '''
-    Returns an array of values corresponding to the evaluation of the
-    two parameter Mittag-Leffler function for an array of values z.
-
-    Parameters
-    ----------
-    z : array
-        Array of numbers to evaluate.
-    a : float
-        Mittag-Leffler parameter a or alpha.
-    b : float
-        Mittag-Leffler parameter b or beta
-    N : int, default 14
-        Number of summation terms for numerical approximation
-
-    Returns
-    -------
-    array
-        Array of output values.
-    
-    Notes
-    -----
-    - This function is designed primarily for real-valued z and especially
-        z = -t^a where t > 0.
-    - The default number of summation terms (14) should provide minimum
-        error achievable for default precision in python. Adjust terms
-        for speed or precision as needed.
-    - This was built based on the hyperbolic Hankel contour approximation
-        in the paper by W. McLean 2021.
-
-    '''
-    
-    N = kwargs.get('N', 14) #number of summation terms for 2 parameter ML
-    
-    z = np.atleast_1d(z)
-    if b == 1:
-        return MLf(z, a)
-    else:
-        def _QNfunc(z, a, b, N):
-            
-            #define constants
-            
-            phi = 1.17210
-            h = 1.08180/N
-            mu = 4.49198*N
-            A = 2*phi - np.pi/2
-
-            # intermediate functions for creating lookup table to improve speed
-            def wfunc(u):
-                return mu*(1 + np.sin(1j*u - phi))
-
-            def Cnfunc(w, nh):
-                return np.exp(w)*np.cos(1j*nh - phi)
-
-            table = pd.DataFrame(data=np.arange(0,N+1), columns=['n'])
-            table['nh'] = h*table['n']
-            table['wnh'] = [wfunc(u) for u in table['nh']]
-            table['Cn'] = [Cnfunc(w, nh) for w,nh in zip(table['wnh'], table['nh'])]
-            
-            def ffunc(w, z, a, b):
-                return (w**(a-b))/(w**a - z)
-            
-            # summation
-            total = 0
-            for n in table['n']:
-                if n == 0:
-                    total += table['Cn'][n]*ffunc(table['wnh'][n], z, a, b).real
-                else:
-                    total += 2*(table['Cn'][n]*ffunc(table['wnh'][n], z, a, b)).real
-            
-            return A*total
-        
-        return np.vectorize(_QNfunc)(z, a, b, N)
-
 
 def fitFracMaxwell(df, **kwargs):
     """
