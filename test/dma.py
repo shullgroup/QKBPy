@@ -13,7 +13,7 @@ from scipy.special import gamma as gammaf
 from scipy.special import digamma
 from pymittagleffler import mittag_leffler
 
-from .utils import first_line, DEFAULT_CYCLER
+from .utils import readDataFile, DEFAULT_CYCLER
 from .models import Gaussian, Arrhenius, VFT
 from .graphics import double_headed_arrow, vline
 
@@ -50,35 +50,35 @@ def readDMA(path, **kwargs):
     instrument = kwargs.get('instrument', 'g2')
 
     if instrument=='rsa3':
-        #if old DMA, read data with these labels
+        # if old DMA, read data with these labels
         # may need to update this to define other variables 
-        #vif it is still being used
-        with open(path, 'r') as f:
-            sep = kwargs.get('sep', '\t')
-            target_cols = [0,1,2,3]
-            # Pass target_cols to prevent premature stopping on metadata
-            skiprows = first_line(path, sep=sep, target_cols=target_cols)
-            df = pd.read_csv(f, delimiter=sep, skiprows=skiprows,
-                             usecols=target_cols,
-                             names=['temp','storage','loss','tand'])
+        # if it is still being used
+        sep = kwargs.get('sep', '\t')
+        target_cols = kwargs.get('target_cols', [0, 1, 2, 3])
+        names = kwargs.get('names', ['temp', 'storage', 'loss', 'tand'])
+        df = readDataFile(path, sep=sep, 
+                          target_cols=target_cols, 
+                          names=names)
 
-    
     # if newer G2 DMA, use these labels
     else:
-        with open(path, 'r') as f:
-            sep = kwargs.get('sep', '\t')
-            target_cols = [0,1,2,3,4,5,6,7]
-            # Pass target_cols to prevent premature stopping on metadata
-            skiprows = first_line(path, sep=sep, target_cols=target_cols)
-            df = pd.read_csv(f, sep=sep, skiprows=skiprows,
-                             usecols=target_cols,
-                             names=['w','t','temp','strain','stress',
+        sep = kwargs.get('sep', '\t')
+        target_cols = kwargs.get('target_cols',
+                                 [0, 1, 2, 3, 4, 5, 6, 7])
+        names = kwargs.get('names',
+                           ['ang_freq','t','temp','strain','stress',
                                     'tand','storage','loss'])
-            df['freq'] = df['w']/(2*np.pi)
-        
+        df = readDataFile(path, sep=sep,
+                          target_cols=target_cols,
+                          names=names)
+        df['freq'] = df['ang_freq']/(2*np.pi)
     
-    df['phi'] = np.degrees(np.arctan(df['tand']))
-    df['Estar'] = df['storage']+1j*df['loss']
+    try:
+        df['phi'] = np.degrees(np.arctan(df['tand']))
+        df['Estar'] = df['storage']+1j*df['loss']
+    except KeyError:
+        pass
+
     return df
 	
 def readtTS(path, **kwargs):
@@ -98,20 +98,19 @@ def readtTS(path, **kwargs):
     '''
     sep = kwargs.get('sep', '\t')
     
-    target_cols = [0,1,2,3,4,5,6,7]
-    # Pass target_cols to prevent premature stopping on metadata
-    skiprows = first_line(path, sep=sep, target_cols=target_cols)
-    #open file
-    with open(path, 'r') as f:
-        df = pd.read_csv(f, sep=sep, skiprows=skiprows,
-                         usecols=target_cols,
-                         names=['w','t','temp','strain','stress',
+    target_cols = kwargs.get('target_cols',
+                             [0,1,2,3,4,5,6,7])
+    names = kwargs.get('names',
+                       ['ang_freq','t','temp','strain','stress',
                                 'tand','storage','loss'])
+    df = readDataFile(path, sep=sep,
+                      target_cols=target_cols,
+                      names=names)
     df['freq'] = df['w']/(2*np.pi)
         
     return df
 
-def readStressRelax(path, **kwargs):
+def readStressRelax_old(path, **kwargs):
     """
     Read stress relaxation test data from a tab-delimited file.
 
@@ -171,21 +170,20 @@ def readStressRelax(path, **kwargs):
     '''
 
     strain = kwargs.get('strain', 1.0)
-    sep = kwargs.get('sep', ',')
-    
     lowstrainwindow = strain - 0.01
     histrainwindow = strain + 0.01
 
+    sep = kwargs.get('sep', ',')
     # Define the columns we want to check and extract
-    target_cols = [2, 3, 4, 5, 6]
-
-    # Pass target_cols to prevent premature stopping on metadata
-    skiprows = first_line(path, sep=sep, target_cols=target_cols)
+    target_cols = kwargs.get('target_cols',
+                             [2, 3, 4, 5, 6])
     
-    with open(path, 'r') as f:
-        df = pd.read_csv(path, skiprows=skiprows, 
-                        usecols=target_cols, sep=sep,
-                        names=['time', 'strain', 'stress', 'modulus', 'torque'])
+    names = kwargs.get('names',
+                       ['time', 'strain', 'stress', 'modulus', 'torque'])
+
+    df = readDataFile(path, sep=sep,
+                      target_cols=target_cols,
+                      names=names)
                      
     # Filter the DataFrame for only when strain is reached
     df = df.query('strain <= @histrainwindow & strain >= @lowstrainwindow')
