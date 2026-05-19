@@ -48,12 +48,21 @@ def readRheo(path, **kwargs):
 
     else:
         with open(path, 'r') as f:
-            # read in the data
-            df = pd.read_csv(f, delimiter="\t", skiprows=start_row,
-                            usecols=[0,1,2,3,4,5,6,9],
-                            names=['storage','loss','tand',
-                                    'ang_freq','torque','time',
-                                    'temp','viscosity'])
+            try:
+                # read in the data
+                df = pd.read_csv(f, delimiter="\t", skiprows=start_row,
+                                usecols=[0,1,2,3,4,5,6,9],
+                                names=['storage','loss','tand',
+                                        'ang_freq','torque','time',
+                                        'temp','viscosity'])
+            except Exception as e:
+                f.seek(0)
+                # read in the data
+                df = pd.read_csv(f, delimiter="\t", skiprows=start_row,
+                                usecols=[0,1,2,3,4,5,6],
+                                names=['storage','loss','tand',
+                                        'ang_freq','torque','time',
+                                        'temp'])
 
         # remove lines if multiple steps
         df = remove_step_lines(df)
@@ -68,8 +77,13 @@ def readRheo(path, **kwargs):
         df['freq'] = df['ang_freq']/(2*np.pi)
 
         # if there isn't a viscosity column, calculate one
-        if df['viscosity'].isna().any():
+        try:
+            if df['viscosity'].isna().any():
+                df['viscosity'] = np.sqrt(df['storage']**2 + df['loss']**2)/df['ang_freq']
+        except KeyError:
             df['viscosity'] = np.sqrt(df['storage']**2 + df['loss']**2)/df['ang_freq']
+
+
 
     # round the temperatures
     df['temp'] = df['temp'].round() 

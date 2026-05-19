@@ -3,6 +3,7 @@
 # https://github.com/shullgroup/QKBPy/blob/main/test/utils.py
 
 import numpy as np
+import pandas as pd
 import csv
 from cycler import cycler
 
@@ -102,4 +103,42 @@ def remove_step_lines(df):
     
     df = df.drop(to_drop).reset_index(drop=True)
 
+    return df
+
+def readDataFile(path, **kwargs):
+    '''
+    Read a general data file by finding the first line of numeric data
+    and returning a pandas DataFrame
+
+    Parameters
+    ----------
+    path : Path
+        Path object to the data file.
+
+    sep : str, default '\t'
+        Delimiter for file. Default is tab.
+
+    target_cols : list, default [0, 1]
+        List of int for which columns to read.
+
+    names : list, default ['col1', 'col2']
+        List of column names to use in the DataFrame
+    
+    Returns
+    -------
+    df : pd.DataFrame
+        Cleaned dataframe with step lines removed.
+    '''
+
+    sep = kwargs.get('sep', '\t')
+    target_cols = kwargs.get('target_cols', [0,1])
+    names = kwargs.get('names', ['col1', 'col2'])
+
+    with open(path, 'r') as f:
+            # Pass target_cols to prevent premature stopping on metadata
+            skiprows = first_line(path, sep=sep, target_cols=target_cols)
+            df = pd.read_csv(f, delimiter=sep, skiprows=skiprows,
+                             usecols=target_cols,
+                             names=names)
+            
     return df
